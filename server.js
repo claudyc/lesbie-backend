@@ -1,86 +1,132 @@
-require("dotenv").config();
-
-const express = require("express");
-const cors = require("cors");
-const Stripe = require("stripe");
+require('dotenv').config();
+const express = require('express');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const cors = require('cors');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// Verifye si Stripe key la egziste
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
-
-// Route tès
-app.get("/", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Lesbie Chat backend ap mache",
-  });
+// Test route
+app.get('/', (req, res) => {
+  res.json({ status: 'Lesbie Chat Backend ap travay! 🌸' });
 });
 
-// Health check
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    success: true,
-    ok: true,
-  });
-});
-
-// Kreye payment intent
-app.post("/create-payment-intent", async (req, res) => {
+// Kreye VerificationSession pou Stripe Identity
+app.post('/create-verification-session', async (req, res) => {
   try {
-    if (!stripe) {
-      return res.status(500).json({
-        success: false,
-        message: "STRIPE_SECRET_KEY pa configure sou server la.",
-      });
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId obligatwa' });
     }
 
-    const { amount, currency = "usd" } = req.body;
-
-    if (!amount || typeof amount !== "number" || amount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Montan an pa valid.",
+    const verificationSession = await stripe.identity
+      .verificationSessions.create({
+        type: 'document',
+        metadata: {
+          user_id: userId,
+        },
+        options: {
+          document: {
+            require_matching_selfie: true,
+          },
+        },
+        return_url: 'https://lesbie-chat.com/verified',
       });
+
+    res.json({
+      client_secret: verificationSession.client_secret,
+      id: verificationSession.id,
+      url: verificationSession.url,
+    });
+  } catch (error) {
+    console.error('Stripe error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Webhook pou resevwa rezilta Stripe
+app.post(
+  '/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET || ''
+      );
+    } catch (err) {
+      console.error('Webhook error:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    switch (event.type) {
+      case 'identity.verification_session.verified':
+        const verifiedSession = event.data.object;
+        const verifiedUserId = verifiedSession.metadata.user_id;
+        console.log(`✅ User ${verifiedUserId} verifye!`);
+
+        // TODO: Mete ajou Firestore via Firebase Admin SDK
+        break;
+
+      case 'identity.verification_session.requires_input':
+        const failedSession = event.data.object;
+        const failedUserId = failedSession.metadata.user_id;
+        const reason = failedSession.last_error?.reason;
+        console.log(
+          `❌ Verifikasyon rate pou ${failedUserId}: ${reason}`
+        );
+        break;
+
+      default:
+        console.log(`Event: ${event.type}`);
+    }
+
+    res.json({ received: true });
+  }
+);
+
+// Kreye PaymentIntent pou Boost pwofil
+app.post('/create-boost-payment', async (req, res) => {
+  try {
+    const { userId, boostType } = req.body;
+
+    const prices = {
+      '1h': 99,    // $0.99
+      '6h': 299,   // $2.99
+      '24h': 499,  // $4.99
+    };
+
+    const amount = prices[boostType];
+    if (!amount) {
+      return res.status(400).json({ error: 'Tip boost pa valid' });
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
-      currency,
-      automatic_payment_methods: {
-        enabled: true,
+      currency: 'usd',
+      metadata: {
+        user_id: userId,
+        boost_type: boostType,
       },
     });
 
-    return res.status(200).json({
-      success: true,
-      clientSecret: paymentIntent.client_secret,
+    res.json({
+      client_secret: paymentIntent.client_secret,
     });
   } catch (error) {
-    console.error("Stripe error:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Erè pandan kreyasyon peman an.",
-    });
+    console.error('Payment error:', error);
+    res.status(400).json({ error: error.message });
   }
 });
 
-// Si route pa egziste
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route sa pa egziste.",
-  });
-});
-
 const PORT = process.env.PORT || 3000;
-
-// Enpòtan pou Railway
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🌸 Lesbie Chat Backend running on port ${PORT}`);
 });
