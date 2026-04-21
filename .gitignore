@@ -1,0 +1,94 @@
+# ===============================
+# OS / System Files
+# ===============================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ===============================
+# Logs / Temp
+# ===============================
+*.log
+*.tmp
+*.swp
+*.swo
+
+# ===============================
+# IDE / Editor
+# ===============================
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# ===============================
+# Flutter / Dart
+# ===============================
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+coverage/
+
+# Flutter Generated
+ios/Flutter/.last_build_id
+
+# Android Build
+android/.gradle/
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# iOS Build
+ios/Pods/
+
+# ===============================
+# Node.js Backend
+# ===============================
+node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Backend Build / Temp
+dist/
+tmp/
+
+# ===============================
+# Secrets / Keys
+# ===============================
+.env
+.env.*
+google-services.json
+GoogleService-Info.plist
+firebase-adminsdk.json
+
+# ===============================
+# Large Files / Installers
+# ===============================
+*.exe
+*.msi
+*.zip
+*.rar
+*.7z
+*.iso
+
+# ===============================
+# Media Optional (si ou vle)
+# ===============================
+# *.mp4
+# *.mov
+# *.psd
+
+# ===============================
+# Misc
+# ===============================
+.history/
+.svn/
+.atom/
+.swiftpm/
+migrate_working_dir/

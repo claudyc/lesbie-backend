@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "328507061507",
+    "project_id": "lesbie-chat",
+    "storage_bucket": "lesbie-chat.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:328507061507:android:9bf8b2c978a5735ecf2536",
+        "android_client_info": {
+          "package_name": "com.entrelesbi.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "328507061507-k4pko4tbj87740uu5f49i0eu2tt2ak68.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiFxvtSysVreGUa_1a4gU_ceYjmz0AQUA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "328507061507-k4pko4tbj87740uu5f49i0eu2tt2ak68.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
