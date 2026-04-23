@@ -40,7 +40,6 @@ app.post('/create-subscription', async (req, res) => {
       return res.status(400).json({ error: 'Tout champ yo obligatwa' });
     }
 
-    // Kreye oswa jwenn kliyan Stripe
     let customer;
     const existingCustomers = await stripe.customers.list({
       email,
@@ -56,7 +55,6 @@ app.post('/create-subscription', async (req, res) => {
       });
     }
 
-    // Ajoute metòd peman
     await stripe.paymentMethods.attach(paymentMethodId, {
       customer: customer.id,
     });
@@ -67,7 +65,6 @@ app.post('/create-subscription', async (req, res) => {
       },
     });
 
-    // Kreye abònman $20/mwa
     const subscription = await stripe.subscriptions.create({
       customer: customer.id,
       items: [{ price: process.env.STRIPE_PRICE_ID }],
@@ -75,7 +72,6 @@ app.post('/create-subscription', async (req, res) => {
       expand: ['latest_invoice.payment_intent'],
     });
 
-    // Mete ajou Firestore
     await db.collection('users').doc(userId).update({
       isPremium: true,
       premiumSince: admin.firestore.FieldValue.serverTimestamp(),
@@ -147,64 +143,6 @@ app.post('/create-verification-session', async (req, res) => {
   }
 });
 
-// Webhook Stripe
-app.post('/webhook',
-  express.raw({ type: 'application/json' }),
-  async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body, sig,
-        process.env.STRIPE_WEBHOOK_SECRET || ''
-      );
-    } catch (err) {
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    switch (event.type) {
-      case 'customer.subscription.deleted':
-      case 'customer.subscription.updated':
-        const subscription = event.data.object;
-        const userId = subscription.metadata.user_id;
-        if (userId) {
-          await db.collection('users').doc(userId).update({
-            isPremium: subscription.status === 'active',
-            subscriptionStatus: subscription.status,
-          });
-        }
-        break;
-
-      case 'identity.verification_session.verified':
-        const verifiedUserId = event.data.object.metadata.user_id;
-        if (verifiedUserId) {
-          await db.collection('users').doc(verifiedUserId).update({
-            isVerified: true,
-            verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-        }
-        break;
-
-      case 'identity.verification_session.requires_input':
-        const failedUserId = event.data.object.metadata.user_id;
-        if (failedUserId) {
-          await db.collection('users').doc(failedUserId).update({
-            isVerified: false,
-            verificationFailedAt:
-                admin.firestore.FieldValue.serverTimestamp(),
-          });
-        }
-        break;
-
-      default:
-        console.log(`Event: ${event.type}`);
-    }
-
-    res.json({ received: true });
-  }
-);
-
 // Kreye PaymentIntent pou Boost pwofil
 app.post('/create-boost-payment', async (req, res) => {
   try {
@@ -227,9 +165,111 @@ app.post('/create-boost-payment', async (req, res) => {
   }
 });
 
+// Kreye Agora Token pou Video Chat
+app.post('/generate-agora-token', async (req, res) => {
+  try {
+    const { channelName, uid } = req.body;
+
+    if (!channelName || !uid) {
+      return res.status(400).json({
+        error: 'channelName ak uid obligatwa',
+      });
+    }
+
+    const { RtcTokenBuilder, RtcRole } = require('agora-token');
+
+    const appId = process.env.AGORA_APP_ID;
+    const appCertificate = process.env.AGORA_APP_CERTIFICATE;
+    const role = RtcRole.PUBLISHER;
+    const expirationTimeInSeconds = 3600;
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const privilegeExpiredTs =
+        currentTimestamp + expirationTimeInSeconds;
+
+    const token = RtcTokenBuilder.buildTokenWithUid(
+      appId,
+      appCertificate,
+      channelName,
+      uid,
+      role,
+      privilegeExpiredTs,
+      privilegeExpiredTs,
+    );
+
+    res.json({ token, appId });
+  } catch (error) {
+    console.error('Agora token error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Webhook Stripe
+app.post('/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body, sig,
+        process.env.STRIPE_WEBHOOK_SECRET || ''
+      );
+    } catch (err) {
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    switch (event.type) {
+      case 'customer.subscription.deleted':
+      case 'customer.subscription.updated':
+        const subscription = event.data.object;
+        const subUserId = subscription.metadata.user_id;
+        if (subUserId) {
+          await db.collection('users').doc(subUserId).update({
+            isPremium: subscription.status === 'active',
+            subscriptionStatus: subscription.status,
+          });
+        }
+        break;
+
+      case 'identity.verification_session.verified':
+        const verifiedUserId =
+            event.data.object.metadata.user_id;
+        if (verifiedUserId) {
+          await db.collection('users').doc(verifiedUserId).update({
+            isVerified: true,
+            verifiedAt:
+                admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+        break;
+
+      case 'identity.verification_session.requires_input':
+        const failedUserId =
+            event.data.object.metadata.user_id;
+        if (failedUserId) {
+          await db.collection('users').doc(failedUserId).update({
+            isVerified: false,
+            verificationFailedAt:
+                admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+        break;
+
+      default:
+        console.log(`Event: ${event.type}`);
+    }
+
+    res.json({ received: true });
+  }
+);
+
 // Route 404
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Route sa pa egziste.' });
+  res.status(404).json({
+    success: false,
+    message: 'Route sa pa egziste.',
+  });
 });
 
 if (process.env.NODE_ENV !== 'production') {
