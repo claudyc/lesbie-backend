@@ -23,10 +23,7 @@ app.use(express.json());
 
 // Route tès
 app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: '🌸 Lesbie Chat Backend ap mache!',
-  });
+  res.json({ success: true, message: '🌸 Lesbie Chat Backend ap mache!' });
 });
 
 // Health check
@@ -34,13 +31,103 @@ app.get('/health', (req, res) => {
   res.json({ success: true, ok: true });
 });
 
+// Kreye Subscription $20/mwa
+app.post('/create-subscription', async (req, res) => {
+  try {
+    const { userId, email, paymentMethodId } = req.body;
+
+    if (!userId || !email || !paymentMethodId) {
+      return res.status(400).json({ error: 'Tout champ yo obligatwa' });
+    }
+
+    // Kreye oswa jwenn kliyan Stripe
+    let customer;
+    const existingCustomers = await stripe.customers.list({
+      email,
+      limit: 1,
+    });
+
+    if (existingCustomers.data.length > 0) {
+      customer = existingCustomers.data[0];
+    } else {
+      customer = await stripe.customers.create({
+        email,
+        metadata: { user_id: userId },
+      });
+    }
+
+    // Ajoute metòd peman
+    await stripe.paymentMethods.attach(paymentMethodId, {
+      customer: customer.id,
+    });
+
+    await stripe.customers.update(customer.id, {
+      invoice_settings: {
+        default_payment_method: paymentMethodId,
+      },
+    });
+
+    // Kreye abònman $20/mwa
+    const subscription = await stripe.subscriptions.create({
+      customer: customer.id,
+      items: [{ price: process.env.STRIPE_PRICE_ID }],
+      metadata: { user_id: userId },
+      expand: ['latest_invoice.payment_intent'],
+    });
+
+    // Mete ajou Firestore
+    await db.collection('users').doc(userId).update({
+      isPremium: true,
+      premiumSince: admin.firestore.FieldValue.serverTimestamp(),
+      stripeCustomerId: customer.id,
+      stripeSubscriptionId: subscription.id,
+      subscriptionStatus: subscription.status,
+    });
+
+    res.json({
+      success: true,
+      subscriptionId: subscription.id,
+      status: subscription.status,
+    });
+  } catch (error) {
+    console.error('Subscription error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Anile Subscription
+app.post('/cancel-subscription', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId obligatwa' });
+
+    const userDoc = await db.collection('users').doc(userId).get();
+    const subscriptionId = userDoc.data()?.stripeSubscriptionId;
+
+    if (!subscriptionId) {
+      return res.status(400).json({ error: 'Pa gen abònman aktif' });
+    }
+
+    await stripe.subscriptions.cancel(subscriptionId);
+
+    await db.collection('users').doc(userId).update({
+      isPremium: false,
+      subscriptionStatus: 'canceled',
+      premiumCanceledAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    res.json({ success: true, message: 'Abònman anile' });
+  } catch (error) {
+    console.error('Cancel error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Kreye VerificationSession pou Stripe Identity
 app.post('/create-verification-session', async (req, res) => {
   try {
     const { userId } = req.body;
-    if (!userId) {
-      return res.status(400).json({ error: 'userId obligatwa' });
-    }
+    if (!userId) return res.status(400).json({ error: 'userId obligatwa' });
 
     const session = await stripe.identity.verificationSessions.create({
       type: 'document',
@@ -60,9 +147,8 @@ app.post('/create-verification-session', async (req, res) => {
   }
 });
 
-// Webhook Stripe — resevwa rezilta verifikasyon
-app.post(
-  '/webhook',
+// Webhook Stripe
+app.post('/webhook',
   express.raw({ type: 'application/json' }),
   async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -70,48 +156,44 @@ app.post(
 
     try {
       event = stripe.webhooks.constructEvent(
-        req.body,
-        sig,
+        req.body, sig,
         process.env.STRIPE_WEBHOOK_SECRET || ''
       );
     } catch (err) {
-      console.error('Webhook error:', err.message);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
     switch (event.type) {
-      case 'identity.verification_session.verified':
-        const verifiedSession = event.data.object;
-        const verifiedUserId = verifiedSession.metadata.user_id;
+      case 'customer.subscription.deleted':
+      case 'customer.subscription.updated':
+        const subscription = event.data.object;
+        const userId = subscription.metadata.user_id;
+        if (userId) {
+          await db.collection('users').doc(userId).update({
+            isPremium: subscription.status === 'active',
+            subscriptionStatus: subscription.status,
+          });
+        }
+        break;
 
-        try {
-          // Mete ajou Firestore — isVerified = true
+      case 'identity.verification_session.verified':
+        const verifiedUserId = event.data.object.metadata.user_id;
+        if (verifiedUserId) {
           await db.collection('users').doc(verifiedUserId).update({
             isVerified: true,
             verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
-          console.log(`✅ User ${verifiedUserId} verifye nan Firestore!`);
-        } catch (e) {
-          console.error('Firestore update error:', e);
         }
         break;
 
       case 'identity.verification_session.requires_input':
-        const failedSession = event.data.object;
-        const failedUserId = failedSession.metadata.user_id;
-        const reason = failedSession.last_error?.reason;
-
-        try {
-          // Mete ajou Firestore — verifikasyon rate
+        const failedUserId = event.data.object.metadata.user_id;
+        if (failedUserId) {
           await db.collection('users').doc(failedUserId).update({
             isVerified: false,
-            verificationFailedReason: reason || 'unknown',
             verificationFailedAt:
                 admin.firestore.FieldValue.serverTimestamp(),
           });
-          console.log(`❌ Verifikasyon rate pou ${failedUserId}: ${reason}`);
-        } catch (e) {
-          console.error('Firestore update error:', e);
         }
         break;
 
@@ -129,10 +211,7 @@ app.post('/create-boost-payment', async (req, res) => {
     const { userId, boostType } = req.body;
     const prices = { '1h': 99, '6h': 299, '24h': 499 };
     const amount = prices[boostType];
-
-    if (!amount) {
-      return res.status(400).json({ error: 'Tip boost pa valid' });
-    }
+    if (!amount) return res.status(400).json({ error: 'Tip boost pa valid' });
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
@@ -150,13 +229,9 @@ app.post('/create-boost-payment', async (req, res) => {
 
 // Route 404
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route sa pa egziste.',
-  });
+  res.status(404).json({ success: false, message: 'Route sa pa egziste.' });
 });
 
-// Pou lokal sèlman
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, '0.0.0.0', () => {
