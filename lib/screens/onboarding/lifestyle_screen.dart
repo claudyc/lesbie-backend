@@ -1,346 +1,455 @@
 import 'package:flutter/material.dart';
-import 'photos_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../core/theme.dart';
+import '../main/home_screen.dart';
 
 class LifestyleScreen extends StatefulWidget {
-  final String identity;
-  final String lookingFor;
-  final String city;
-  final String country;
-  final String state;
-  final double? latitude;
-  final double? longitude;
-
-  const LifestyleScreen({
-    super.key,
-    required this.identity,
-    required this.lookingFor,
-    required this.city,
-    required this.country,
-    required this.state,
-    this.latitude,
-    this.longitude,
-  });
+  const LifestyleScreen({super.key});
 
   @override
   State<LifestyleScreen> createState() => _LifestyleScreenState();
 }
 
 class _LifestyleScreenState extends State<LifestyleScreen> {
+  String? _lookingFor;
   String? _relationshipGoal;
   final List<String> _interests = [];
-  String? _smoking;
-  String? _alcohol;
-  String? _children;
+  bool _isLoading = false;
+
+  final List<Map<String, String>> _lookingForOptions = [
+    {'value': 'friends', 'emoji': '👯', 'label': 'Friends'},
+    {'value': 'dating', 'emoji': '💕', 'label': 'Dating'},
+    {'value': 'relationship', 'emoji': '💍', 'label': 'Relationship'},
+    {'value': 'networking', 'emoji': '🤝', 'label': 'Networking'},
+    {'value': 'casual', 'emoji': '✨', 'label': 'Casual'},
+    {'value': 'undecided', 'emoji': '🌈', 'label': 'Open to anything'},
+  ];
+
+  final List<Map<String, String>> _relationshipOptions = [
+    {'value': 'monogamous', 'emoji': '💑', 'label': 'Monogamous'},
+    {'value': 'polyamorous', 'emoji': '💞', 'label': 'Polyamorous'},
+    {'value': 'not_sure', 'emoji': '🤷', 'label': 'Not sure yet'},
+  ];
 
   final List<Map<String, String>> _interestOptions = [
-    {'key': 'music', 'label': 'Mizik 🎵'},
-    {'key': 'travel', 'label': 'Vwayaj ✈️'},
-    {'key': 'sports', 'label': 'Spò ⚽'},
-    {'key': 'cooking', 'label': 'Kwizin 🍳'},
-    {'key': 'reading', 'label': 'Lekti 📚'},
-    {'key': 'art', 'label': 'Atizana 🎨'},
-    {'key': 'movies', 'label': 'Fim 🎬'},
-    {'key': 'nature', 'label': 'Nati 🌿'},
-    {'key': 'fitness', 'label': 'Fitness 💪'},
-    {'key': 'dancing', 'label': 'Dans 💃'},
-    {'key': 'gaming', 'label': 'Gaming 🎮'},
-    {'key': 'photography', 'label': 'Foto 📸'},
+    {'value': 'travel', 'emoji': '✈️', 'label': 'Travel'},
+    {'value': 'music', 'emoji': '🎵', 'label': 'Music'},
+    {'value': 'art', 'emoji': '🎨', 'label': 'Art'},
+    {'value': 'fitness', 'emoji': '💪', 'label': 'Fitness'},
+    {'value': 'cooking', 'emoji': '🍳', 'label': 'Cooking'},
+    {'value': 'gaming', 'emoji': '🎮', 'label': 'Gaming'},
+    {'value': 'reading', 'emoji': '📚', 'label': 'Reading'},
+    {'value': 'movies', 'emoji': '🎬', 'label': 'Movies'},
+    {'value': 'nature', 'emoji': '🌿', 'label': 'Nature'},
+    {'value': 'fashion', 'emoji': '👗', 'label': 'Fashion'},
+    {'value': 'dancing', 'emoji': '💃', 'label': 'Dancing'},
+    {'value': 'photography', 'emoji': '📸', 'label': 'Photography'},
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2D1B4E),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 40),
-                  _buildProgressBar(4, 5),
-                  const SizedBox(height: 32),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(
-                      Icons.arrow_back_ios,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Estil lavi ou',
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Pale nou de ou pou jwenn pi bon match',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFFED93B1),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+      backgroundColor: AppTheme.bg,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.topCenter,
+            radius: 1.2,
+            colors: [
+              AppTheme.pink.withValues(alpha: 0.07),
+              AppTheme.bg,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionTitle('Kisa ou chache?'),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
+                    Row(
                       children: [
-                        _buildChoiceChip('Relasyon serye 💍', 'serious',
-                            _relationshipGoal,
-                                (v) => setState(() => _relationshipGoal = v)),
-                        _buildChoiceChip('Dating 💕', 'dating',
-                            _relationshipGoal,
-                                (v) => setState(() => _relationshipGoal = v)),
-                        _buildChoiceChip('Zanmitay 👯', 'friendship',
-                            _relationshipGoal,
-                                (v) => setState(() => _relationshipGoal = v)),
-                        _buildChoiceChip('Poko konnen 🤷', 'unsure',
-                            _relationshipGoal,
-                                (v) => setState(() => _relationshipGoal = v)),
-                      ],
-                    ),
-                    const SizedBox(height: 28),
-                    _buildSectionTitle('Ki enterè ou? (chwazi plizyè)'),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: _interestOptions.map((item) {
-                        final isSelected = _interests.contains(item['key']);
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              if (isSelected) {
-                                _interests.remove(item['key']);
-                              } else {
-                                _interests.add(item['key']!);
-                              }
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFFD4537E)
-                                  : Colors.white.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isSelected
-                                    ? const Color(0xFFD4537E)
-                                    : Colors.white.withOpacity(0.15),
-                              ),
-                            ),
-                            child: Text(
-                              item['label']!,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : Colors.white.withOpacity(0.8),
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
-                            ),
+                        Expanded(
+                          child: LinearProgressIndicator(
+                            value: 1.0,
+                            backgroundColor: AppTheme.gray3,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                AppTheme.pink),
+                            minHeight: 3,
+                            borderRadius: BorderRadius.circular(2),
                           ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 28),
-                    _buildSectionTitle('Eske ou fimen?'),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        _buildChoiceChip('Wi 🚬', 'yes', _smoking,
-                                (v) => setState(() => _smoking = v)),
-                        _buildChoiceChip('Non 🚭', 'no', _smoking,
-                                (v) => setState(() => _smoking = v)),
-                        _buildChoiceChip('Pafwa 🤏', 'sometimes', _smoking,
-                                (v) => setState(() => _smoking = v)),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 28),
-                    _buildSectionTitle('Bwason alkòl?'),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        _buildChoiceChip('Wi 🍷', 'yes', _alcohol,
-                                (v) => setState(() => _alcohol = v)),
-                        _buildChoiceChip('Non 🚫', 'no', _alcohol,
-                                (v) => setState(() => _alcohol = v)),
-                        _buildChoiceChip('Pafwa 🥂', 'sometimes', _alcohol,
-                                (v) => setState(() => _alcohol = v)),
-                      ],
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Tell us about\nyourself 💫',
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.white,
+                        height: 1.2,
+                        letterSpacing: -1,
+                      ),
                     ),
-                    const SizedBox(height: 28),
-                    _buildSectionTitle('Timoun?'),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        _buildChoiceChip('Wi mwen gen 👶', 'have', _children,
-                                (v) => setState(() => _children = v)),
-                        _buildChoiceChip('Pa gen 🙅', 'none', _children,
-                                (v) => setState(() => _children = v)),
-                        _buildChoiceChip('Vle nan lavni 🌱', 'want', _children,
-                                (v) => setState(() => _children = v)),
-                        _buildChoiceChip('Pa vle 🚫', 'dont_want', _children,
-                                (v) => setState(() => _children = v)),
-                      ],
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Help us find the right connections for you',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.gray,
+                      ),
                     ),
-                    const SizedBox(height: 100),
                   ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-              child: SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _isComplete() ? _continue : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4537E),
-                    disabledBackgroundColor:
-                    const Color(0xFFD4537E).withOpacity(0.3),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    'Kontinye →',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+
+              // Scrollable content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Looking for
+                      const Text(
+                        'What are you looking for?',
+                        style: TextStyle(
+                          color: AppTheme.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _lookingForOptions.map((opt) {
+                          final isSelected = _lookingFor == opt['value'];
+                          return GestureDetector(
+                            onTap: () =>
+                                setState(() => _lookingFor = opt['value']),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppTheme.pink.withValues(alpha: 0.15)
+                                    : AppTheme.card,
+                                borderRadius: BorderRadius.circular(
+                                    AppTheme.radiusPill),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppTheme.pink
+                                      : AppTheme.pink
+                                      .withValues(alpha: 0.12),
+                                  width: isSelected ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(opt['emoji']!,
+                                      style:
+                                      const TextStyle(fontSize: 16)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    opt['label']!,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? AppTheme.pink
+                                          : AppTheme.gray,
+                                      fontSize: 13,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Relationship style
+                      const Text(
+                        'Relationship style',
+                        style: TextStyle(
+                          color: AppTheme.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _relationshipOptions.map((opt) {
+                          final isSelected =
+                              _relationshipGoal == opt['value'];
+                          return GestureDetector(
+                            onTap: () => setState(
+                                    () => _relationshipGoal = opt['value']),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppTheme.pink.withValues(alpha: 0.15)
+                                    : AppTheme.card,
+                                borderRadius: BorderRadius.circular(
+                                    AppTheme.radiusPill),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppTheme.pink
+                                      : AppTheme.pink
+                                      .withValues(alpha: 0.12),
+                                  width: isSelected ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(opt['emoji']!,
+                                      style:
+                                      const TextStyle(fontSize: 16)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    opt['label']!,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? AppTheme.pink
+                                          : AppTheme.gray,
+                                      fontSize: 13,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Interests
+                      const Text(
+                        'Your interests (pick at least 3)',
+                        style: TextStyle(
+                          color: AppTheme.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _interestOptions.map((opt) {
+                          final isSelected =
+                          _interests.contains(opt['value']);
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                if (isSelected) {
+                                  _interests.remove(opt['value']);
+                                } else {
+                                  _interests.add(opt['value']!);
+                                }
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppTheme.pink.withValues(alpha: 0.15)
+                                    : AppTheme.card,
+                                borderRadius: BorderRadius.circular(
+                                    AppTheme.radiusPill),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppTheme.pink
+                                      : AppTheme.pink
+                                      .withValues(alpha: 0.12),
+                                  width: isSelected ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(opt['emoji']!,
+                                      style:
+                                      const TextStyle(fontSize: 16)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    opt['label']!,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? AppTheme.pink
+                                          : AppTheme.gray,
+                                      fontSize: 13,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Continue button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: _lookingFor != null &&
+                                _interests.length >= 3
+                                ? AppTheme.pinkGrad
+                                : const LinearGradient(
+                              colors: [
+                                Color(0xFF2E2C38),
+                                Color(0xFF2E2C38),
+                              ],
+                            ),
+                            borderRadius:
+                            BorderRadius.circular(AppTheme.radius),
+                            boxShadow: _lookingFor != null &&
+                                _interests.length >= 3
+                                ? AppTheme.pinkShadow
+                                : [],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: _isLoading ||
+                                _lookingFor == null ||
+                                _interests.length < 3
+                                ? null
+                                : _save,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                    AppTheme.radius),
+                              ),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                                : const Text(
+                              "Let's Go! 🚀",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Skip
+                      Center(
+                        child: TextButton(
+                          onPressed: _isLoading ? null : _skip,
+                          child: const Text(
+                            'Skip for now',
+                            style: TextStyle(
+                              color: AppTheme.gray2,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  bool _isComplete() {
-    return _relationshipGoal != null &&
-        _interests.isNotEmpty &&
-        _smoking != null &&
-        _alcohol != null &&
-        _children != null;
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-
-  Widget _buildChoiceChip(
-      String label,
-      String value,
-      String? selected,
-      Function(String) onTap,
-      ) {
-    final isSelected = selected == value;
-    return GestureDetector(
-      onTap: () => onTap(value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFFD4537E)
-              : Colors.white.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected
-                ? const Color(0xFFD4537E)
-                : Colors.white.withOpacity(0.15),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color:
-            isSelected ? Colors.white : Colors.white.withOpacity(0.8),
-            fontWeight:
-            isSelected ? FontWeight.bold : FontWeight.normal,
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildProgressBar(int current, int total) {
-    return Row(
-      children: List.generate(total, (index) {
-        return Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            height: 4,
-            decoration: BoxDecoration(
-              color: index < current
-                  ? const Color(0xFFD4537E)
-                  : Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+  Future<void> _save() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({
+        'lookingFor': _lookingFor,
+        'relationshipGoal': _relationshipGoal,
+        'interests': _interests,
+        'onboardingComplete': true,
+      });
+
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+              (route) => false,
         );
-      }),
-    );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showError('Error: $e');
+      }
+    }
   }
 
-  void _continue() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PhotosScreen(
-          identity: widget.identity,
-          lookingFor: widget.lookingFor,
-          city: widget.city,
-          country: widget.country,
-          state: widget.state,
-          latitude: widget.latitude,
-          longitude: widget.longitude,
-          relationshipGoal: _relationshipGoal!,
-          interests: _interests,
-          smoking: _smoking!,
-          alcohol: _alcohol!,
-          children: _children!,
+  Future<void> _skip() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({'onboardingComplete': true});
+    }
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (route) => false,
+      );
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
     );

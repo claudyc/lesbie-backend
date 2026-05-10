@@ -92,3 +92,10 @@ firebase-adminsdk.json
 .atom/
 .swiftpm/
 migrate_working_dir/
+.vercel
+serviceAccountKey.json
+*firebase-adminsdk*.json
+.env
+serviceAccountKey.json
+*firebase-adminsdk*.json
+.env

@@ -1,10 +1,11 @@
 require('dotenv').config();
 const express = require('express');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const cors = require('cors');
 const admin = require('firebase-admin');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { RtcTokenBuilder, RtcRole } = require('agora-token');
 
-// Inisyalize Firebase Admin
+// ─── Firebase Admin Init ───────────────────────────────────────────────────
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -18,264 +19,269 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const app = express();
 
+// ─── Middleware ────────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
 
-// Route tès
+// ─── Helper: Verify Firebase Token ─────────────────────────────────────────
+async function verifyToken(req, res) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader?.startsWith('Bearer ')) {
+    res.status(401).json({
+      error: 'Unauthorized — token manke',
+    });
+    return null;
+  }
+
+  try {
+    const idToken = authHeader.split('Bearer ')[1];
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    return decoded.uid;
+  } catch {
+    res.status(401).json({
+      error: 'Unauthorized — token invalid',
+    });
+    return null;
+  }
+}
+
+// ─── Public Routes ─────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
-  res.json({ success: true, message: '🌸 Lesbie Chat Backend ap mache!' });
-});
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ success: true, ok: true });
-});
-
-// Kreye Subscription $20/mwa
-app.post('/create-subscription', async (req, res) => {
-  try {
-    const { userId, email, paymentMethodId } = req.body;
-
-    if (!userId || !email || !paymentMethodId) {
-      return res.status(400).json({ error: 'Tout champ yo obligatwa' });
-    }
-
-    let customer;
-    const existingCustomers = await stripe.customers.list({
-      email,
-      limit: 1,
-    });
-
-    if (existingCustomers.data.length > 0) {
-      customer = existingCustomers.data[0];
-    } else {
-      customer = await stripe.customers.create({
-        email,
-        metadata: { user_id: userId },
-      });
-    }
-
-    await stripe.paymentMethods.attach(paymentMethodId, {
-      customer: customer.id,
-    });
-
-    await stripe.customers.update(customer.id, {
-      invoice_settings: {
-        default_payment_method: paymentMethodId,
-      },
-    });
-
-    const subscription = await stripe.subscriptions.create({
-      customer: customer.id,
-      items: [{ price: process.env.STRIPE_PRICE_ID }],
-      metadata: { user_id: userId },
-      expand: ['latest_invoice.payment_intent'],
-    });
-
-    await db.collection('users').doc(userId).update({
-      isPremium: true,
-      premiumSince: admin.firestore.FieldValue.serverTimestamp(),
-      stripeCustomerId: customer.id,
-      stripeSubscriptionId: subscription.id,
-      subscriptionStatus: subscription.status,
-    });
-
-    res.json({
-      success: true,
-      subscriptionId: subscription.id,
-      status: subscription.status,
-    });
-  } catch (error) {
-    console.error('Subscription error:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
-
-// Anile Subscription
-app.post('/cancel-subscription', async (req, res) => {
-  try {
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ error: 'userId obligatwa' });
-
-    const userDoc = await db.collection('users').doc(userId).get();
-    const subscriptionId = userDoc.data()?.stripeSubscriptionId;
-
-    if (!subscriptionId) {
-      return res.status(400).json({ error: 'Pa gen abònman aktif' });
-    }
-
-    await stripe.subscriptions.cancel(subscriptionId);
-
-    await db.collection('users').doc(userId).update({
-      isPremium: false,
-      subscriptionStatus: 'canceled',
-      premiumCanceledAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    res.json({ success: true, message: 'Abònman anile' });
-  } catch (error) {
-    console.error('Cancel error:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
-
-// Kreye VerificationSession pou Stripe Identity
-app.post('/create-verification-session', async (req, res) => {
-  try {
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ error: 'userId obligatwa' });
-
-    const session = await stripe.identity.verificationSessions.create({
-      type: 'document',
-      metadata: { user_id: userId },
-      options: { document: { require_matching_selfie: true } },
-      return_url: 'https://lesbie-chat.com/verified',
-    });
-
-    res.json({
-      client_secret: session.client_secret,
-      id: session.id,
-      url: session.url,
-    });
-  } catch (error) {
-    console.error('Verification error:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
-
-// Kreye PaymentIntent pou Boost pwofil
-app.post('/create-boost-payment', async (req, res) => {
-  try {
-    const { userId, boostType } = req.body;
-    const prices = { '1h': 99, '6h': 299, '24h': 499 };
-    const amount = prices[boostType];
-    if (!amount) return res.status(400).json({ error: 'Tip boost pa valid' });
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency: 'usd',
-      automatic_payment_methods: { enabled: true },
-      metadata: { user_id: userId, boost_type: boostType },
-    });
-
-    res.json({ client_secret: paymentIntent.client_secret });
-  } catch (error) {
-    console.error('Payment error:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
-
-// Kreye Agora Token pou Video Chat
-app.post('/generate-agora-token', async (req, res) => {
-  try {
-    const { channelName, uid } = req.body;
-
-    if (!channelName || !uid) {
-      return res.status(400).json({
-        error: 'channelName ak uid obligatwa',
-      });
-    }
-
-    const { RtcTokenBuilder, RtcRole } = require('agora-token');
-
-    const appId = process.env.AGORA_APP_ID;
-    const appCertificate = process.env.AGORA_APP_CERTIFICATE;
-    const role = RtcRole.PUBLISHER;
-    const expirationTimeInSeconds = 3600;
-    const currentTimestamp = Math.floor(Date.now() / 1000);
-    const privilegeExpiredTs =
-        currentTimestamp + expirationTimeInSeconds;
-
-    const token = RtcTokenBuilder.buildTokenWithUid(
-      appId,
-      appCertificate,
-      channelName,
-      uid,
-      role,
-      privilegeExpiredTs,
-      privilegeExpiredTs,
-    );
-
-    res.json({ token, appId });
-  } catch (error) {
-    console.error('Agora token error:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
-
-// Webhook Stripe
-app.post('/webhook',
-  express.raw({ type: 'application/json' }),
-  async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body, sig,
-        process.env.STRIPE_WEBHOOK_SECRET || ''
-      );
-    } catch (err) {
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    switch (event.type) {
-      case 'customer.subscription.deleted':
-      case 'customer.subscription.updated':
-        const subscription = event.data.object;
-        const subUserId = subscription.metadata.user_id;
-        if (subUserId) {
-          await db.collection('users').doc(subUserId).update({
-            isPremium: subscription.status === 'active',
-            subscriptionStatus: subscription.status,
-          });
-        }
-        break;
-
-      case 'identity.verification_session.verified':
-        const verifiedUserId =
-            event.data.object.metadata.user_id;
-        if (verifiedUserId) {
-          await db.collection('users').doc(verifiedUserId).update({
-            isVerified: true,
-            verifiedAt:
-                admin.firestore.FieldValue.serverTimestamp(),
-          });
-        }
-        break;
-
-      case 'identity.verification_session.requires_input':
-        const failedUserId =
-            event.data.object.metadata.user_id;
-        if (failedUserId) {
-          await db.collection('users').doc(failedUserId).update({
-            isVerified: false,
-            verificationFailedAt:
-                admin.firestore.FieldValue.serverTimestamp(),
-          });
-        }
-        break;
-
-      default:
-        console.log(`Event: ${event.type}`);
-    }
-
-    res.json({ received: true });
-  }
-);
-
-// Route 404
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route sa pa egziste.',
+  res.json({
+    success: true,
+    message: '🌸 Lesbie Chat Backend ap mache!',
   });
 });
 
+app.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    ok: true,
+  });
+});
+
+// ─── AI Verification: Face++ ──────────────────────────────────────────────
+app.post('/verify-video-ai', async (req, res) => {
+  try {
+    const verifiedUid = await verifyToken(req, res);
+    if (!verifiedUid) return;
+
+    const { selfieUrl } = req.body;
+
+    if (!selfieUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'selfieUrl obligatwa',
+      });
+    }
+
+    if (
+      !process.env.FACEPP_API_KEY ||
+      !process.env.FACEPP_API_SECRET
+    ) {
+      return res.status(500).json({
+        success: false,
+        error: 'Face++ pa configure sou Vercel',
+      });
+    }
+
+    const form = new FormData();
+
+    form.append('api_key', process.env.FACEPP_API_KEY);
+    form.append('api_secret', process.env.FACEPP_API_SECRET);
+    form.append('image_url', selfieUrl);
+    form.append('return_attributes', 'gender,age');
+
+    const faceResponse = await fetch(
+      'https://api-us.faceplusplus.com/facepp/v3/detect',
+      {
+        method: 'POST',
+        body: form,
+      },
+    );
+
+    const data = await faceResponse.json();
+
+    // ─── API Error
+    if (!faceResponse.ok) {
+      console.error('Face++ error:', data);
+
+      return res.status(500).json({
+        success: false,
+        status: 'error',
+        error:
+          data?.error_message ||
+          'Face++ request failed',
+      });
+    }
+
+    const faces = data.faces || [];
+
+    // ─── No Face
+    if (faces.length === 0) {
+
+      await db.collection('users')
+        .doc(verifiedUid)
+        .set({
+          verificationStatus: 'rejected',
+          isVerified: false,
+          verificationReason: 'No face detected',
+          updatedAt:
+            admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+      await db.collection('verification_requests')
+        .doc(verifiedUid)
+        .set({
+          aiStatus: 'rejected',
+          aiReason: 'No face detected',
+          aiProvider: 'facepp',
+          aiCheckedAt:
+            admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+      return res.json({
+        success: false,
+        status: 'rejected',
+      });
+    }
+
+    // ─── Multiple Faces
+    if (faces.length > 1) {
+
+      await db.collection('users')
+        .doc(verifiedUid)
+        .set({
+          verificationStatus: 'manual_review',
+          isVerified: false,
+          verificationReason:
+            'Multiple faces detected',
+          updatedAt:
+            admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+      await db.collection('verification_requests')
+        .doc(verifiedUid)
+        .set({
+          aiStatus: 'manual_review',
+          aiReason: 'Multiple faces detected',
+          aiProvider: 'facepp',
+          aiCheckedAt:
+            admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+      return res.json({
+        success: false,
+        status: 'manual_review',
+      });
+    }
+
+    const face = faces[0];
+
+    const gender =
+      face.attributes?.gender?.value || 'Unknown';
+
+    const age =
+      face.attributes?.age?.value || 0;
+
+    const isFemale = gender === 'Female';
+    const isAdult = age >= 18;
+
+    // ─── Uncertain AI
+    if (!isFemale || !isAdult) {
+
+      await db.collection('users')
+        .doc(verifiedUid)
+        .set({
+          verificationStatus: 'manual_review',
+          isVerified: false,
+          verificationReason:
+            'Gender or age uncertain',
+          updatedAt:
+            admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+      await db.collection('verification_requests')
+        .doc(verifiedUid)
+        .set({
+          aiStatus: 'manual_review',
+          aiGender: gender,
+          aiAge: age,
+          aiProvider: 'facepp',
+          aiCheckedAt:
+            admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+      return res.json({
+        success: false,
+        status: 'manual_review',
+        gender,
+        age,
+      });
+    }
+
+    // ─── APPROVED
+    await db.collection('users')
+      .doc(verifiedUid)
+      .set({
+        verificationStatus: 'approved',
+        isVerified: true,
+        verifiedAt:
+          admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt:
+          admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+    await db.collection('verification_requests')
+      .doc(verifiedUid)
+      .set({
+        aiStatus: 'approved',
+        aiGender: gender,
+        aiAge: age,
+        aiProvider: 'facepp',
+        approvedAt:
+          admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+    return res.json({
+      success: true,
+      status: 'approved',
+      gender,
+      age,
+    });
+
+  } catch (error) {
+
+    console.error(
+      'AI verification error:',
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      status: 'error',
+      error: 'AI verification failed',
+    });
+  }
+});
+
+// ─── 404 Handler ──────────────────────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.path} pa egziste.`,
+  });
+});
+
+// ─── Start Server ─────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
+
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🌸 Lesbie Chat Backend running on port ${PORT}`);
+    console.log(
+      `🌸 Lesbie Chat Backend running on port ${PORT}`,
+    );
   });
 }
 

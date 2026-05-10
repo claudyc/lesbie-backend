@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../../core/theme.dart';
 import 'register_screen.dart';
-import '../home/home_screen.dart';
-import '../onboarding/identity_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,122 +28,131 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2D1B4E),
+      backgroundColor: AppTheme.bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 50),
+              const SizedBox(height: 60),
+
               // Logo
               Container(
-                width: 100,
-                height: 100,
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFD4537E),
-                  borderRadius: BorderRadius.circular(26),
-                  border: Border.all(
-                    color: const Color(0xFF7F77DD),
-                    width: 3,
-                  ),
+                  gradient: AppTheme.pinkGrad,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: AppTheme.pinkShadow,
                 ),
                 child: const Center(
-                  child: Text(
-                    '♀♀',
-                    style: TextStyle(fontSize: 40, color: Colors.white),
-                  ),
+                  child: Text('♀♀', style: TextStyle(fontSize: 36, color: Colors.white)),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
+
+              // Title
               const Text(
                 'Lesbie Chat',
                 style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 1.5,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.white,
+                  letterSpacing: -1,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               const Text(
-                'Konekte ak kominote ou',
+                'Connect with your community',
                 style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFFED93B1),
+                  fontSize: 13,
+                  color: AppTheme.gray,
+                  letterSpacing: 0.5,
                 ),
               ),
               const SizedBox(height: 48),
+
+              // Email field
               _buildTextField(
                 controller: _emailController,
-                hint: 'Adrès email',
+                hint: 'Email address',
                 icon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
+              // Password field
               _buildTextField(
                 controller: _passwordController,
-                hint: 'Modpas',
+                hint: 'Password',
                 icon: Icons.lock_outline,
                 isPassword: true,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+
+              // Forgot password
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: _resetPassword,
                   child: const Text(
-                    'Bliye modpas?',
+                    'Forgot password?',
                     style: TextStyle(
-                      color: Color(0xFFED93B1),
+                      color: AppTheme.pinkSoft,
                       fontSize: 13,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+
+              // Login button
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4537E),
+                    backgroundColor: AppTheme.pink,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(AppTheme.radius),
                     ),
+                    elevation: 0,
+                    shadowColor: AppTheme.pink.withOpacity(0.35),
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                    'Konekte',
+                    'Sign In',
                     style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.white,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
+
+              // Divider
               Row(
                 children: [
-                  Expanded(
-                    child: Divider(color: Colors.white.withOpacity(0.2)),
-                  ),
+                  Expanded(child: Divider(color: AppTheme.gray2.withOpacity(0.3))),
                   const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    padding: EdgeInsets.symmetric(horizontal: 14),
                     child: Text(
-                      'oswa',
-                      style: TextStyle(color: Color(0xFF7F77DD)),
+                      'or',
+                      style: TextStyle(color: AppTheme.gray2, fontSize: 13),
                     ),
                   ),
-                  Expanded(
-                    child: Divider(color: Colors.white.withOpacity(0.2)),
-                  ),
+                  Expanded(child: Divider(color: AppTheme.gray2.withOpacity(0.3))),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
+
+              // Google button
               SizedBox(
                 width: double.infinity,
                 height: 54,
@@ -152,45 +161,50 @@ class _LoginScreenState extends State<LoginScreen> {
                   icon: const Text(
                     'G',
                     style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.white,
                     ),
                   ),
                   label: const Text(
-                    'Kontinye ak Google',
-                    style: TextStyle(color: Colors.white, fontSize: 15),
+                    'Continue with Google',
+                    style: TextStyle(
+                      color: AppTheme.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.white.withOpacity(0.3)),
+                    side: BorderSide(color: AppTheme.gray3),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(AppTheme.radius),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 36),
+
+              // Register
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
-                    'Pa gen kont?',
-                    style: TextStyle(color: Colors.white70),
+                    "Don't have an account?",
+                    style: TextStyle(color: AppTheme.gray, fontSize: 14),
                   ),
                   TextButton(
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const RegisterScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const RegisterScreen()),
                       );
                     },
                     child: const Text(
-                      'Enskri gratis',
+                      'Sign Up',
                       style: TextStyle(
-                        color: Color(0xFFED93B1),
-                        fontWeight: FontWeight.bold,
+                        color: AppTheme.pinkSoft,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
                     ),
                   ),
@@ -213,31 +227,30 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.15)),
+        color: AppTheme.card,
+        borderRadius: BorderRadius.circular(AppTheme.radius),
+        border: Border.all(color: AppTheme.pink.withOpacity(0.12)),
       ),
       child: TextField(
         controller: controller,
         obscureText: isPassword ? _obscurePassword : false,
         keyboardType: keyboardType,
-        style: const TextStyle(color: Colors.white),
+        style: const TextStyle(color: AppTheme.white),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-          prefixIcon: Icon(icon, color: const Color(0xFF7F77DD)),
+          hintStyle: const TextStyle(color: AppTheme.gray2),
+          prefixIcon: Icon(icon, color: AppTheme.pink, size: 20),
           suffixIcon: isPassword
               ? IconButton(
             icon: Icon(
               _obscurePassword
                   ? Icons.visibility_off_outlined
                   : Icons.visibility_outlined,
-              color: Colors.white54,
+              color: AppTheme.gray2,
+              size: 20,
             ),
             onPressed: () {
-              setState(() {
-                _obscurePassword = !_obscurePassword;
-              });
+              setState(() => _obscurePassword = !_obscurePassword);
             },
           )
               : null,
@@ -253,75 +266,102 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showError('Ranpli email ak modpas ou!');
+      _showError('Please fill in your email and password!');
       return;
     }
+
     setState(() => _isLoading = true);
+
     try {
-      final credential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(credential.user!.uid)
-          .get();
-
-      if (mounted) {
-        if (doc.exists && doc.data()?['onboardingComplete'] == true) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const IdentityScreen()),
-          );
-        }
-      }
     } on FirebaseAuthException catch (e) {
       String message;
       switch (e.code) {
         case 'user-not-found':
-          message = 'Pa gen kont ak email sa a.';
+          message = 'No account found with this email.';
           break;
         case 'wrong-password':
-          message = 'Modpas la pa kòrèk.';
+          message = 'Incorrect password.';
           break;
         case 'invalid-email':
-          message = 'Email la pa valid.';
+          message = 'Invalid email address.';
           break;
         case 'invalid-credential':
-          message = 'Email oswa modpas la pa kòrèk.';
+          message = 'Incorrect email or password.';
           break;
         default:
-          message = 'Erè: ${e.message}';
+          message = 'Error: ${e.message}';
       }
-      _showError(message);
-    } finally {
       if (mounted) setState(() => _isLoading = false);
+      _showError(message);
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+      _showError('Unknown error: $e');
     }
   }
 
   Future<void> _googleSignIn() async {
-    _showError('Google Sign In ap vini byento!');
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential =
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      if (!doc.exists) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
+          'uid': userCredential.user!.uid,
+          'name': userCredential.user!.displayName ?? '',
+          'email': userCredential.user!.email ?? '',
+          'photoUrl': userCredential.user!.photoURL,
+          'createdAt': FieldValue.serverTimestamp(),
+          'isVerified': false,
+          'onboardingComplete': false,
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+      _showError('Google Sign In error: $e');
+    }
   }
 
   Future<void> _resetPassword() async {
     if (_emailController.text.isEmpty) {
-      _showError('Mete email ou anvan!');
+      _showError('Please enter your email first!');
       return;
     }
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(
         email: _emailController.text.trim(),
       );
-      _showSuccess('Email reyenisyalizasyon voye! Tcheke bwat ou.');
+      _showSuccess('Reset email sent! Check your inbox.');
     } catch (e) {
-      _showError('Erè — verifye email ou.');
+      _showError('Error — please check your email.');
     }
   }
 
@@ -329,8 +369,11 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red.shade700,
+        backgroundColor: AppTheme.red,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }
@@ -339,8 +382,11 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: AppTheme.green,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }

@@ -1,7 +1,7 @@
-name: lesbie
-description: "App rankont pou fanm ak fanm — Entre Lesbi"
+﻿name: lesbie
+description: "App rankont pou fanm ak fanm - Entre Lesbi"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.5+8
 
 environment:
   sdk: ^3.10.7
@@ -14,8 +14,7 @@ dependencies:
   cloud_firestore: ^5.4.3
   firebase_storage: ^12.3.2
   firebase_database: ^11.1.4
-  firebase_messaging: ^15.1.3
-  flutter_riverpod: ^2.5.1
+  firebase_messaging: ^15.2.10
   go_router: ^14.3.0
   cached_network_image: ^3.4.1
   image_picker: ^1.1.2
@@ -33,11 +32,28 @@ dependencies:
   uuid: ^4.5.1
   permission_handler: ^11.3.1
   cupertino_icons: ^1.0.8
+  agora_rtc_engine: ^6.5.3
+  camera: ^0.12.0+1
+  record: ^6.2.0
+  audioplayers: ^6.6.0
+  http: ^1.6.0
+  path_provider: ^2.1.0
+  video_player: ^2.11.1
+  google_mlkit_face_detection: ^0.11.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/logo.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#07070B"
+  adaptive_icon_foreground: "assets/images/logo.png"
 
 flutter:
   uses-material-design: true
@@ -45,3 +61,7 @@ flutter:
     - assets/images/
     - assets/lang/
     - assets/icons/
+    - assets/logos/
+
+
+

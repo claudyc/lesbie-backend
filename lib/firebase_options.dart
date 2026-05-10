@@ -15,7 +15,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyAwzVffrliEbPGlBlaDtNpdC-JmGSfB8GM',
-    appId: '1:328507061507:android:9bf8b2c978a5735ecf2536',
+    appId: '1:328507061507:android:44aae2b25a44661acf2536',
     messagingSenderId: '328507061507',
     projectId: 'lesbie-chat',
     storageBucket: 'lesbie-chat.firebasestorage.app',

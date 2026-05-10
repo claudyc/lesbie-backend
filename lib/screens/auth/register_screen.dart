@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../onboarding/identity_screen.dart';
+import '../../core/theme.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -35,99 +35,100 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2D1B4E),
+      backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.bg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios,
+              color: AppTheme.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Kreye kont ou',
-          style: TextStyle(color: Colors.white, fontSize: 18),
+          'Create Account',
+          style: TextStyle(
+            color: AppTheme.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 10),
               const Text(
-                'Byenveni nan\nLesbie Chat! 🌸',
+                'Welcome to\nLesbie Chat! 🌸',
                 style: TextStyle(
                   fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.white,
                   height: 1.3,
+                  letterSpacing: -0.5,
                 ),
               ),
               const SizedBox(height: 6),
               const Text(
-                'Kreye kont ou gratis — pran mwens pase 2 minit',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFFED93B1),
-                ),
+                'Create your free account in less than 2 minutes',
+                style: TextStyle(fontSize: 13, color: AppTheme.gray),
               ),
               const SizedBox(height: 28),
-              _buildLabel('Non konplè'),
+
+              _buildLabel('Full Name'),
               _buildTextField(
                 controller: _nameController,
-                hint: 'Egz: Marie Joseph',
+                hint: 'e.g. Marie Joseph',
                 icon: Icons.person_outline,
               ),
               const SizedBox(height: 16),
-              _buildLabel('Adrès email'),
+
+              _buildLabel('Email Address'),
               _buildTextField(
                 controller: _emailController,
-                hint: 'ou@example.com',
+                hint: 'you@example.com',
                 icon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
-              _buildLabel('Nimewo telefòn'),
+
+              _buildLabel('Phone Number'),
               _buildTextField(
                 controller: _phoneController,
-                hint: '+509 XXXX XXXX',
+                hint: '+1 XXX XXX XXXX',
                 icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 16),
-              _buildLabel('Dat nesans (18+ obligatwa)'),
+
+              _buildLabel('Date of Birth (18+ required)'),
               GestureDetector(
                 onTap: _pickBirthDate,
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
+                      horizontal: 16, vertical: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(14),
+                    color: AppTheme.card,
+                    borderRadius: BorderRadius.circular(AppTheme.radius),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.15),
-                    ),
+                        color: AppTheme.pink.withOpacity(0.12)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.calendar_today_outlined,
-                        color: Color(0xFF7F77DD),
-                        size: 20,
-                      ),
+                      const Icon(Icons.calendar_today_outlined,
+                          color: AppTheme.pink, size: 20),
                       const SizedBox(width: 12),
                       Text(
                         _birthDate == null
-                            ? 'Chwazi dat nesans ou'
+                            ? 'Select your date of birth'
                             : '${_birthDate!.day}/${_birthDate!.month}/${_birthDate!.year}',
                         style: TextStyle(
                           color: _birthDate == null
-                              ? Colors.white.withOpacity(0.4)
-                              : Colors.white,
+                              ? AppTheme.gray2
+                              : AppTheme.white,
                           fontSize: 15,
                         ),
                       ),
@@ -136,30 +137,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              _buildLabel('Modpas'),
+
+              _buildLabel('Password'),
               _buildTextField(
                 controller: _passwordController,
-                hint: 'Minimòm 8 karaktè',
+                hint: 'Minimum 8 characters',
                 icon: Icons.lock_outline,
                 isPassword: true,
                 obscure: _obscurePassword,
                 onToggle: () => setState(
-                      () => _obscurePassword = !_obscurePassword,
-                ),
+                        () => _obscurePassword = !_obscurePassword),
               ),
               const SizedBox(height: 16),
-              _buildLabel('Konfime modpas'),
+
+              _buildLabel('Confirm Password'),
               _buildTextField(
                 controller: _confirmPasswordController,
-                hint: 'Repete modpas la',
+                hint: 'Repeat your password',
                 icon: Icons.lock_outline,
                 isPassword: true,
                 obscure: _obscureConfirm,
                 onToggle: () => setState(
-                      () => _obscureConfirm = !_obscureConfirm,
-                ),
+                        () => _obscureConfirm = !_obscureConfirm),
               ),
               const SizedBox(height: 20),
+
+              // Terms
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -167,10 +170,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     value: _acceptTerms,
                     onChanged: (v) =>
                         setState(() => _acceptTerms = v ?? false),
-                    activeColor: const Color(0xFFD4537E),
+                    activeColor: AppTheme.pink,
                     side: BorderSide(
-                      color: Colors.white.withOpacity(0.4),
-                    ),
+                        color: AppTheme.gray2.withOpacity(0.5)),
                   ),
                   Expanded(
                     child: Padding(
@@ -178,23 +180,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: RichText(
                         text: const TextSpan(
                           style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 13,
-                          ),
+                              color: AppTheme.gray, fontSize: 13),
                           children: [
-                            TextSpan(text: 'Mwen aksepte '),
+                            TextSpan(text: 'I accept the '),
                             TextSpan(
-                              text: 'Tèm itilizasyon',
+                              text: 'Terms of Service',
                               style: TextStyle(
-                                color: Color(0xFFED93B1),
+                                color: AppTheme.pinkSoft,
                                 decoration: TextDecoration.underline,
                               ),
                             ),
-                            TextSpan(text: ' ak '),
+                            TextSpan(text: ' and '),
                             TextSpan(
-                              text: 'Politik konfidansyalite',
+                              text: 'Privacy Policy',
                               style: TextStyle(
-                                color: Color(0xFFED93B1),
+                                color: AppTheme.pinkSoft,
                                 decoration: TextDecoration.underline,
                               ),
                             ),
@@ -206,46 +206,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ],
               ),
               const SizedBox(height: 24),
+
+              // Register button
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _isLoading || !_acceptTerms ? null : _register,
+                  onPressed:
+                  _isLoading || !_acceptTerms ? null : _register,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4537E),
+                    backgroundColor: AppTheme.pink,
                     disabledBackgroundColor:
-                    const Color(0xFFD4537E).withOpacity(0.4),
+                    AppTheme.pink.withOpacity(0.4),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius:
+                      BorderRadius.circular(AppTheme.radius),
                     ),
+                    elevation: 0,
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const CircularProgressIndicator(
+                      color: Colors.white)
                       : const Text(
-                    'Kreye kont mwen',
+                    'Create My Account',
                     style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.white,
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Login link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
-                    'Deja gen kont?',
-                    style: TextStyle(color: Colors.white70),
+                    'Already have an account?',
+                    style: TextStyle(color: AppTheme.gray, fontSize: 14),
                   ),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: const Text(
-                      'Konekte',
+                      'Sign In',
                       style: TextStyle(
-                        color: Color(0xFFED93B1),
-                        fontWeight: FontWeight.bold,
+                        color: AppTheme.pinkSoft,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
                     ),
                   ),
@@ -265,7 +274,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: Text(
         text,
         style: const TextStyle(
-          color: Colors.white70,
+          color: AppTheme.gray,
           fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
@@ -284,26 +293,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.15)),
+        color: AppTheme.card,
+        borderRadius: BorderRadius.circular(AppTheme.radius),
+        border: Border.all(color: AppTheme.pink.withOpacity(0.12)),
       ),
       child: TextField(
         controller: controller,
         obscureText: isPassword ? obscure : false,
         keyboardType: keyboardType,
-        style: const TextStyle(color: Colors.white),
+        style: const TextStyle(color: AppTheme.white),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-          prefixIcon: Icon(icon, color: const Color(0xFF7F77DD), size: 20),
+          hintStyle: const TextStyle(color: AppTheme.gray2),
+          prefixIcon: Icon(icon, color: AppTheme.pink, size: 20),
           suffixIcon: isPassword
               ? IconButton(
             icon: Icon(
               obscure
                   ? Icons.visibility_off_outlined
                   : Icons.visibility_outlined,
-              color: Colors.white54,
+              color: AppTheme.gray2,
               size: 20,
             ),
             onPressed: onToggle,
@@ -311,9 +320,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               : null,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
-            vertical: 16,
-            horizontal: 16,
-          ),
+              vertical: 16, horizontal: 16),
         ),
       ),
     );
@@ -324,13 +331,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       context: context,
       initialDate: DateTime(2000),
       firstDate: DateTime(1940),
-      lastDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+      lastDate:
+      DateTime.now().subtract(const Duration(days: 365 * 18)),
       builder: (context, child) {
         return Theme(
           data: ThemeData.dark().copyWith(
             colorScheme: const ColorScheme.dark(
-              primary: Color(0xFFD4537E),
-              surface: Color(0xFF2D1B4E),
+              primary: AppTheme.pink,
+              surface: AppTheme.card,
             ),
           ),
           child: child!,
@@ -342,27 +350,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     if (_nameController.text.isEmpty) {
-      _showError('Mete non ou!');
+      _showError('Please enter your name!');
       return;
     }
     if (_emailController.text.isEmpty) {
-      _showError('Mete email ou!');
+      _showError('Please enter your email!');
       return;
     }
     if (_phoneController.text.isEmpty) {
-      _showError('Mete nimewo telefòn ou!');
+      _showError('Please enter your phone number!');
       return;
     }
     if (_birthDate == null) {
-      _showError('Chwazi dat nesans ou!');
+      _showError('Please select your date of birth!');
       return;
     }
     if (_passwordController.text.length < 8) {
-      _showError('Modpas la bezwen minimòm 8 karaktè!');
+      _showError('Password must be at least 8 characters!');
       return;
     }
     if (_passwordController.text != _confirmPasswordController.text) {
-      _showError('Modpas yo pa matche!');
+      _showError('Passwords do not match!');
       return;
     }
 
@@ -387,33 +395,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'createdAt': FieldValue.serverTimestamp(),
         'isVerified': false,
         'gender': 'female',
-        'onboardingComplete': false,
+        'onboardingComplete': true,
       });
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const IdentityScreen()),
-        );
-      }
+      if (mounted) Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
       String message;
       switch (e.code) {
         case 'email-already-in-use':
-          message = 'Email sa a deja itilize!';
+          message = 'This email is already in use!';
           break;
         case 'weak-password':
-          message = 'Modpas la twò fèb!';
+          message = 'Password is too weak!';
           break;
         case 'invalid-email':
-          message = 'Email la pa valid!';
+          message = 'Invalid email address!';
           break;
         default:
-          message = 'Erè: ${e.message}';
+          message = 'Error: ${e.message}';
       }
       _showError(message);
     } catch (e) {
-      _showError('Erè inatandi — eseye ankò.');
+      _showError('Unexpected error — please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -423,8 +426,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red.shade700,
+        backgroundColor: AppTheme.red,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }

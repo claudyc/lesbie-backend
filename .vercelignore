@@ -1,0 +1,17 @@
+node_modules
+serviceAccountKey.json
+.dart_tool
+build
+android
+ios
+lib
+test
+assets
+pubspec.yaml
+pubspec.lock
+*.dart
+*.gradle
+*.xml
+*.png
+*.jpg
+*.jpeg

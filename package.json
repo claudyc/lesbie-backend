@@ -20,6 +20,15 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "firebase-admin": "^13.8.0",
+    "node-fetch": "^3.3.2",
     "stripe": "^22.0.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/claudyc/lesbie-backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/claudyc/lesbie-backend/issues"
+  },
+  "homepage": "https://github.com/claudyc/lesbie-backend#readme"
 }
